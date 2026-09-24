@@ -696,18 +696,38 @@
      that's hard-coded in the HTML above.
      ============================================================ */
   const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0c7Pe9CKmL-vE_zc8vmEDBkSx0PncdnW87wWVy-HKlx5jqiAd7A8HBNBrhjKpNfMlOTuX2S_GVFi4/pub?gid=0&single=true&output=csv";
+  function parseCsvLine(line){
+    const out = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQuotes = false; }
+        else { cur += ch; }
+      } else {
+        if (ch === '"') { inQuotes = true; }
+        else if (ch === ',') { out.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+    }
+    out.push(cur.trim());
+    return out;
+  }
 
   async function loadMonthlyMenu(){
     if (!SHEET_CSV_URL) return;
     try {
       const res = await fetch(SHEET_CSV_URL, { cache: 'no-store' });
       const text = await res.text();
-      const rows = text.trim().split('\n').map(r =>
-        r.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
-      );
+      const rows = text.trim().split('\n')
+        .filter(r => r.trim().length > 0)
+        .map(parseCsvLine);
       if (rows.length < 2) return;
       const data = rows[rows.length - 1];
       const [mealDate, orderDeadline, restaurant, chickenDish, vegDish] = data;
+
       const setText = (id, val) => {
         const el = document.getElementById(id);
         if (el && val) el.textContent = val;
